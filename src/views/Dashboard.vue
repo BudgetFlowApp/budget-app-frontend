@@ -3,7 +3,7 @@
 </style>
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
-import { apiGet } from '../services/api';
+import { apiGet, apiPost } from '../services/api';
 
 interface BudgetDepense {
     id: number,
@@ -31,6 +31,8 @@ const iconesCategories: Record<string, string> = {
   "Courses": "🛒",
   "Loyer": "🏠"
 };
+const categoriesKey = Object.keys(iconesCategories);
+
 
 const depensesPrevuesByAnnee = ref<BudgetDepense[]>([]);
 const depensesReellesByAnneeMois = ref<BudgetDepense[]>([]);
@@ -45,8 +47,7 @@ const moisNoms = [
   'Septembre', 'Octobre', 'Novembre', 'Décembre'
 ];
 const mois = computed(() => moisNoms[moisActuel.value]);
-console.log(mois.value)
-console.log(annee.value)
+
 
 const revenus = ref<number>(0);  
 const depenses = computed(() =>
@@ -54,6 +55,17 @@ const depenses = computed(() =>
 );
 
 const solde = computed(() => revenus.value - depenses.value)
+
+const popupDepenseOuverte = ref(false);
+const nouvelleDepense = ref({
+  annee: annee.value,
+  mois: mois.value,
+  type: '',
+  categorie: '',
+  sous_categorie: '',
+  description: '',
+  montant: 0
+});
 
 onMounted(() => {
   chargerDepenses();  
@@ -181,8 +193,38 @@ function moisSuivant() {
   }
 }
 
-function ajouterDepense() {
-  console.log('Ajouter une dépense')
+async function ajouterDepense() {
+  const depense = {
+    annee: annee.value,
+    mois: mois.value,
+    type: 'dépense',    
+    categorie: nouvelleDepense.value.categorie,
+    sous_categorie: nouvelleDepense.value.sous_categorie,
+    description: nouvelleDepense.value.description,
+    montant: nouvelleDepense.value.montant
+  };    
+  console.log('Nouvelle dépense :', depense); 
+
+  try {
+    await apiPost<DepensesReelles>('/depenses-reelles', depense);
+
+    popupDepenseOuverte.value = false;
+    nouvelleDepense.value = {
+        annee: annee.value,
+        mois: mois.value,
+        type: '',
+        categorie: '',
+        sous_categorie: '',
+        description: '',
+        montant: 0
+    };  
+    await chargerDepenses();    
+  } catch (error) {
+    console.error(
+      'Erreur lors de la récupération des dépenses réelles par année et par mois :',
+      error
+    );
+  }  
 }
 
 function getMontantByCategorie(categorie: string, data: BudgetDepense[]): number {
@@ -566,15 +608,81 @@ function getSumAllDepensesPrevues(data: BudgetDepense[]): number {
 
     <button
       class="add-expense-button"
-      @click="ajouterDepense"
+      @click="popupDepenseOuverte = true"
     >
-
       <span>+</span>
 
       Ajouter une dépense
 
     </button>
+    <div
+    v-if="popupDepenseOuverte"
+    class="modal-overlay"
+    @click.self="popupDepenseOuverte = false"
+    >
+    <div class="modal">
+        <h2>Ajouter une dépense</h2>
 
+        <form @submit.prevent="ajouterDepense">
+        <label for="categorie">Catégorie</label>
+        <select
+            id="categorie"
+            v-model="nouvelleDepense.categorie"
+            required
+        >
+            <option value="" disabled>Choisir une catégorie</option>
+            <option
+            v-for="categorie in categoriesKey"
+            :key="categorie"
+            :value="categorie"
+            >
+            {{ categorie }}
+            </option>
+        </select>
+
+        <label for="sous-categorie">Sous-catégorie</label>
+        <input
+            id="sous-categorie"
+            v-model="nouvelleDepense.sous_categorie"
+            type="text"
+            placeholder="Ex. Sephora, Uber..."
+            required
+        />
+
+        <label for="description">Description</label>
+        <input
+            id="description"
+            v-model="nouvelleDepense.description"
+            type="text"
+            placeholder="Ex. Gloss, fond de teint..."
+        />
+
+        <label for="montant">Montant (€)</label>
+        <input
+            id="montant"
+            v-model.number="nouvelleDepense.montant"
+            type="number"
+            min="0.01"
+            step="0.01"
+            placeholder="0,00"
+            required
+        />
+
+        <div class="modal-actions">
+            <button
+            type="button"
+            @click="popupDepenseOuverte = false"
+            >
+            Annuler
+            </button>
+
+            <button type="submit">
+            Ajouter
+            </button>
+        </div>
+        </form>
+    </div>
+    </div>
   </main>
   </div> 
 </template>

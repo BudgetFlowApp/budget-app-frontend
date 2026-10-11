@@ -11,3 +11,19 @@ export async function apiGet<T>(endpoint: string): Promise<T> {
 
   return response.json() as Promise<T>;
 }
+
+export async function apiPost<T>(endpoint: string, data: unknown): Promise<T> {
+  const response = await fetch(`${API_URL}${endpoint}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(data)
+  });
+
+  if (!response.ok) {
+    throw new Error(`Erreur HTTP : ${response.status}`);
+  }
+
+  return response.json() as Promise<T>;
+}
