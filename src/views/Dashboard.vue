@@ -16,122 +16,104 @@ interface BudgetDepense {
     montant: number
 }
 
+interface DepensesReelles {
+    Courses: number,
+    Transport: number,
+    Loyer: number,
+    Restaurants: number,
+    Shopping: number,
+}
+
+const depensesPrevuesByAnnee = ref<BudgetDepense[]>([]);
+const depensesReellesByAnneeMois = ref<BudgetDepense[]>([]);
+const depensesReellesTotalByCategorie = ref<DepensesReelles>(); 
+
 const annee = ref('2025')
 const mois = ref('Septembre')
 
-const revenus = ref(0)
-const depenses = ref(1521.30)
-
-const depense_logement = ref(0);
-const budget_logement = ref(0);
-
-const depense_courses = ref(0);
-const budget_courses = ref(0);
-
-const depense_transport = ref(0);
-const budget_transport = ref(0);
+const revenus = ref<number>(0);  
+const depenses = computed(() =>
+  getSumAllDepensesPrevues(depensesReellesByAnneeMois.value)
+);
 
 const solde = computed(() => revenus.value - depenses.value)
 
 onMounted(async () => {
   try {
-    const data = await apiGet<BudgetDepense>(
-      '/depenses-prevues/categorie/2025/Septembre/Loyer'
+    depensesPrevuesByAnnee.value = await apiGet<BudgetDepense[]>(
+      '/depenses-prevues/annee/2025'
     );
-    budget_logement.value = data.montant;
   } catch (error) {
     console.error(
-      'Erreur lors de la récupération du budget pour le logement :',
+      'Erreur lors de la récupération des dépenses prévues par année :',
       error
     );
   }
+
   try {
-    const data = await apiGet<BudgetDepense>(
-      '/depenses-reelles/categorie/2025/Septembre/Loyer'
+    depensesReellesByAnneeMois.value = await apiGet<BudgetDepense[]>(
+      '/depenses-reelles/annee-mois/2025/Septembre'
     );
-    depense_logement.value = data.montant;
   } catch (error) {
     console.error(
-      'Erreur lors de la récupération de la dépense pour le logement :',
-      error
-    );
-  }
-  try {
-    const data = await apiGet<BudgetDepense>(
-      '/depenses-prevues/categorie/2025/Septembre/Courses'
-    );
-    budget_courses.value = data.montant;
-  } catch (error) {
-    console.error(
-      'Erreur lors de la récupération du budget pour les courses :',
-      error
-    );
-  }    
-  try {
-    const data = await apiGet<BudgetDepense>(
-      '/depenses-reelles/categorie/2025/Septembre/Courses'
-    );
-    depense_courses.value = data.montant;
-  } catch (error) {
-    console.error(
-      'Erreur lors de la récupération de la dépense pour les courses :',
+      'Erreur lors de la récupération des dépenses prévues par année :',
       error
     );
   }  
+
   try {
-    const data = await apiGet<BudgetDepense>(
-      '/depenses-prevues/categorie/2025/Septembre/Transport'
+    revenus.value = await apiGet<number>(
+      '/revenus/sum-all-revenus/2025/Septembre'
     );
-    budget_transport.value = data.montant;
   } catch (error) {
     console.error(
-      'Erreur lors de la récupération du budget pour le transport :',
+      'Erreur lors de la récupération des revenus prévues par année et par mois :',
       error
     );
-  }   
+  }  
+
   try {
-    const data = await apiGet<BudgetDepense>(
-      '/depenses-reelles/categorie/2025/Septembre/Transport'
+    depensesReellesTotalByCategorie.value = await apiGet<DepensesReelles>(
+      '/depenses-reelles/total-by-categorie/2025/Septembre'
     );
-    depense_transport.value = data.montant;
   } catch (error) {
     console.error(
-      'Erreur lors de la récupération de la dépense pour le transport :',
+      'Erreur lors de la récupération des dépenses réelles par année et par mois :',
       error
     );
   }   
 });
 
-const categories = ref([
+const categories = computed(() => [
   {
-    nom: 'Logement',
+    nom: 'Loyer',
     icon: '🏠',
-    depense: depense_logement,
-    budget: budget_logement,
+    depense: depensesReellesTotalByCategorie.value?.Loyer,
+    budget: getMontantByCategorie("Loyer", depensesPrevuesByAnnee.value),
   },
   {
     nom: 'Restaurants',
     icon: '🍔',
-    depense: 87.40,
-    budget: 150,
+    depense: depensesReellesTotalByCategorie.value?.Restaurants,
+    budget: getMontantByCategorie("Restaurants", depensesPrevuesByAnnee.value),
   },
   {
     nom: 'Courses',
     icon: '🛒',
-    depense: depense_courses,
-    budget: budget_courses,
+    depense: depensesReellesTotalByCategorie.value?.Courses,
+    budget: getMontantByCategorie("Courses", depensesPrevuesByAnnee.value),
   },
   {
     nom: 'Shopping',
     icon: '🛍️',
-    depense: 250,
-    budget: 300,
+    depense: depensesReellesTotalByCategorie.value?.Shopping,
+    budget: getMontantByCategorie("Shopping", depensesPrevuesByAnnee.value),
   },
   {
     nom: 'Transport',
     icon: '🚗',
-    depense: depense_transport,
-    budget: budget_transport,
+    depense: depensesReellesTotalByCategorie.value?.Transport,
+    budget: getMontantByCategorie("Transport", depensesPrevuesByAnnee.value),
   },
 ])
 
@@ -139,34 +121,32 @@ const transactions = ref([
   {
     nom: 'Del Arte',
     categorie: 'Restaurants',
-    date: "Aujourd'hui",
     icon: '🍔',
     montant: 24.90,
   },
   {
     nom: 'Amazon',
     categorie: 'Shopping',
-    date: 'Hier',
     icon: '🛍️',
     montant: 25.48,
   },
   {
     nom: 'Uber',
     categorie: 'Transport',
-    date: '21 septembre',
     icon: '🚗',
     montant: 21.93,
   },
   {
     nom: 'Beauty Bay',
     categorie: 'Beauté',
-    date: '20 septembre',
     icon: '💄',
     montant: 34.50,
   },
 ])
 
-const depensesPrevues = ref(950)
+const depensesPrevues = computed(() =>
+  getSumAllDepensesPrevues(depensesPrevuesByAnnee.value)
+);
 
 const pourcentageDepenses = computed(() => {
   return Math.min((depenses.value / depensesPrevues.value) * 100)
@@ -196,6 +176,25 @@ function moisSuivant() {
 function ajouterDepense() {
   console.log('Ajouter une dépense')
 }
+
+function getMontantByCategorie(categorie: string, data: BudgetDepense[]): number {
+    let result = 0;
+    for (const depense of data) {
+      if (depense.categorie == categorie) {
+        result = depense.montant;
+      }
+    }
+    return result;
+}
+
+function getSumAllDepensesPrevues(data: BudgetDepense[]): number {
+    let result = 0;
+    for (const depense of data) {
+        result = result+depense.montant;
+    }
+    return result;
+}
+
 </script>
 
 <template>
@@ -536,8 +535,6 @@ function ajouterDepense() {
 
               <small>
                 {{ transaction.categorie }}
-                ·
-                {{ transaction.date }}
               </small>
 
             </div>
