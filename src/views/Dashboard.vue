@@ -2,11 +2,11 @@
 @import '../style.css';
 </style>
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { apiGet } from '../services/api';
 
 interface BudgetDepense {
-    idDepensePrevue: number,
+    id: number,
     annee: number,
     mois: string,
     type: string,
@@ -24,12 +24,29 @@ interface DepensesReelles {
     Shopping: number,
 }
 
+const iconesCategories: Record<string, string> = {
+  "Shopping": "🛍️",
+  "Transport": "🚆",
+  "Restaurants": "🍽️",
+  "Courses": "🛒",
+  "Loyer": "🏠"
+};
+
 const depensesPrevuesByAnnee = ref<BudgetDepense[]>([]);
 const depensesReellesByAnneeMois = ref<BudgetDepense[]>([]);
 const depensesReellesTotalByCategorie = ref<DepensesReelles>(); 
 
-const annee = ref('2025')
-const mois = ref('Septembre')
+const moisActuel = ref(new Date().getMonth()); // 0 = janvier, 11 = décembre
+const annee = ref(new Date().getFullYear());
+
+const moisNoms = [
+  'Janvier', 'Février', 'Mars', 'Avril',
+  'Mai', 'Juin', 'Juillet', 'Août',
+  'Septembre', 'Octobre', 'Novembre', 'Décembre'
+];
+const mois = computed(() => moisNoms[moisActuel.value]);
+console.log(mois.value)
+console.log(annee.value)
 
 const revenus = ref<number>(0);  
 const depenses = computed(() =>
@@ -38,109 +55,44 @@ const depenses = computed(() =>
 
 const solde = computed(() => revenus.value - depenses.value)
 
-onMounted(async () => {
-  try {
-    depensesPrevuesByAnnee.value = await apiGet<BudgetDepense[]>(
-      '/depenses-prevues/annee/2025'
-    );
-  } catch (error) {
-    console.error(
-      'Erreur lors de la récupération des dépenses prévues par année :',
-      error
-    );
-  }
+onMounted(() => {
+  chargerDepenses();  
+});
 
-  try {
-    depensesReellesByAnneeMois.value = await apiGet<BudgetDepense[]>(
-      '/depenses-reelles/annee-mois/2025/Septembre'
-    );
-  } catch (error) {
-    console.error(
-      'Erreur lors de la récupération des dépenses prévues par année :',
-      error
-    );
-  }  
-
-  try {
-    revenus.value = await apiGet<number>(
-      '/revenus/sum-all-revenus/2025/Septembre'
-    );
-  } catch (error) {
-    console.error(
-      'Erreur lors de la récupération des revenus prévues par année et par mois :',
-      error
-    );
-  }  
-
-  try {
-    depensesReellesTotalByCategorie.value = await apiGet<DepensesReelles>(
-      '/depenses-reelles/total-by-categorie/2025/Septembre'
-    );
-  } catch (error) {
-    console.error(
-      'Erreur lors de la récupération des dépenses réelles par année et par mois :',
-      error
-    );
-  }   
+watch([moisActuel, annee], () => {
+  chargerDepenses();
 });
 
 const categories = computed(() => [
   {
     nom: 'Loyer',
     icon: '🏠',
-    depense: depensesReellesTotalByCategorie.value?.Loyer,
+    depense: depensesReellesTotalByCategorie.value?.Loyer ?? 0,
     budget: getMontantByCategorie("Loyer", depensesPrevuesByAnnee.value),
   },
   {
     nom: 'Restaurants',
     icon: '🍔',
-    depense: depensesReellesTotalByCategorie.value?.Restaurants,
+    depense: depensesReellesTotalByCategorie.value?.Restaurants ?? 0,
     budget: getMontantByCategorie("Restaurants", depensesPrevuesByAnnee.value),
   },
   {
     nom: 'Courses',
     icon: '🛒',
-    depense: depensesReellesTotalByCategorie.value?.Courses,
+    depense: depensesReellesTotalByCategorie.value?.Courses ?? 0,
     budget: getMontantByCategorie("Courses", depensesPrevuesByAnnee.value),
   },
   {
     nom: 'Shopping',
     icon: '🛍️',
-    depense: depensesReellesTotalByCategorie.value?.Shopping,
+    depense: depensesReellesTotalByCategorie.value?.Shopping ?? 0,
     budget: getMontantByCategorie("Shopping", depensesPrevuesByAnnee.value),
   },
   {
     nom: 'Transport',
     icon: '🚗',
-    depense: depensesReellesTotalByCategorie.value?.Transport,
+    depense: depensesReellesTotalByCategorie.value?.Transport ?? 0,
     budget: getMontantByCategorie("Transport", depensesPrevuesByAnnee.value),
-  },
-])
-
-const transactions = ref([
-  {
-    nom: 'Del Arte',
-    categorie: 'Restaurants',
-    icon: '🍔',
-    montant: 24.90,
-  },
-  {
-    nom: 'Amazon',
-    categorie: 'Shopping',
-    icon: '🛍️',
-    montant: 25.48,
-  },
-  {
-    nom: 'Uber',
-    categorie: 'Transport',
-    icon: '🚗',
-    montant: 21.93,
-  },
-  {
-    nom: 'Beauty Bay',
-    categorie: 'Beauté',
-    icon: '💄',
-    montant: 34.50,
   },
 ])
 
@@ -152,6 +104,52 @@ const pourcentageDepenses = computed(() => {
   return Math.min((depenses.value / depensesPrevues.value) * 100)
 })
 
+async function chargerDepenses() {
+  try {
+    depensesPrevuesByAnnee.value = await apiGet<BudgetDepense[]>(
+      `/depenses-prevues/annee-mois/${annee.value}/${mois.value}`
+    );
+  } catch (error) {
+    console.error(
+      'Erreur lors de la récupération des dépenses prévues par année :',
+      error
+    );
+  }
+
+  try {
+    depensesReellesByAnneeMois.value = await apiGet<BudgetDepense[]>(
+      `/depenses-reelles/annee-mois/${annee.value}/${mois.value}`
+    );
+  } catch (error) {
+    console.error(
+      'Erreur lors de la récupération des dépenses prévues par année :',
+      error
+    );
+  }  
+
+  try {
+    revenus.value = await apiGet<number>(
+      `/revenus/sum-all-revenus/${annee.value}/${mois.value}`
+    );
+  } catch (error) {
+    console.error(
+      'Erreur lors de la récupération des revenus prévues par année et par mois :',
+      error
+    );
+  }  
+
+  try {
+    depensesReellesTotalByCategorie.value = await apiGet<DepensesReelles>(
+      `/depenses-reelles/total-by-categorie/${annee.value}/${mois.value}`
+    );
+  } catch (error) {
+    console.error(
+      'Erreur lors de la récupération des dépenses réelles par année et par mois :',
+      error
+    );
+  }
+}
+
 function formatMoney(value) {
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
@@ -160,17 +158,27 @@ function formatMoney(value) {
 }
 
 function categoriePourcentage(categorie) {
-  return Math.min((categorie.depense / categorie.budget) * 100)
+  if (!categorie.budget) return 0;
+  return Math.min(((categorie.depense ?? 0) / categorie.budget) * 100)
 }
 
 function moisPrecedent() {
-  // À connecter plus tard à ton backend / Google Sheets
-  console.log('Mois précédent')
+  if (moisActuel.value === 0) {
+    // Si on est en janvier, on passe à décembre de l'année précédente
+    moisActuel.value = 11;
+    annee.value--;
+  } else {
+    moisActuel.value--;
+  }
 }
-
 function moisSuivant() {
-  // À connecter plus tard à ton backend / Google Sheets
-  console.log('Mois suivant')
+  if (moisActuel.value === 11) {
+    // Si on est en décembre, on passe à janvier de l'année suivante
+    moisActuel.value = 0;
+    annee.value++;
+  } else {
+    moisActuel.value++;
+  }
 }
 
 function ajouterDepense() {
@@ -262,7 +270,7 @@ function getSumAllDepensesPrevues(data: BudgetDepense[]): number {
           ‹
         </button>
 
-        <span>{{ mois }}</span>
+        <span>{{ moisNoms[moisActuel] }} {{ annee }}</span>
 
         <button @click="moisSuivant">
           ›
@@ -518,23 +526,25 @@ function getSumAllDepensesPrevues(data: BudgetDepense[]): number {
         <div class="transaction-list">
 
           <div
-            v-for="transaction in transactions"
-            :key="transaction.nom"
+            v-for="transaction in depensesReellesByAnneeMois"
+            :key="transaction.id"
             class="transaction"
           >
 
             <div class="transaction-icon">
-              {{ transaction.icon }}
+              {{ iconesCategories[transaction.categorie] ?? "💰" }}
             </div>
 
             <div class="transaction-info">
 
               <strong>
-                {{ transaction.nom }}
+                {{ transaction.sous_categorie }}
               </strong>
 
               <small>
                 {{ transaction.categorie }}
+                <!-- ·
+                {{ transaction.description }} -->
               </small>
 
             </div>
