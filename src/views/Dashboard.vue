@@ -24,6 +24,14 @@ interface DepensesReelles {
     Shopping: number,
 }
 
+interface Revenu {
+    annee: number,
+    mois: string,
+    categorie: string,
+    sous_categorie: string,
+    montant: number
+}
+
 const iconesCategories: Record<string, string> = {
   "Shopping": "🛍️",
   "Transport": "🚆",
@@ -37,6 +45,7 @@ const categoriesKey = Object.keys(iconesCategories);
 const depensesPrevuesByAnnee = ref<BudgetDepense[]>([]);
 const depensesReellesByAnneeMois = ref<BudgetDepense[]>([]);
 const depensesReellesTotalByCategorie = ref<DepensesReelles>(); 
+const categorieList = ref<string[]>([]);     
 
 const moisActuel = ref(new Date().getMonth()); // 0 = janvier, 11 = décembre
 const annee = ref(new Date().getFullYear());
@@ -57,6 +66,10 @@ const depenses = computed(() =>
 const solde = computed(() => revenus.value - depenses.value)
 
 const popupDepenseOuverte = ref(false);
+const popupRevenuOuverte = ref(false);
+const ajoutCategorieOuvert = ref(false);
+const nouvelleCategorie = ref('');
+
 const nouvelleDepense = ref({
   annee: annee.value,
   mois: mois.value,
@@ -64,6 +77,14 @@ const nouvelleDepense = ref({
   categorie: '',
   sous_categorie: '',
   description: '',
+  montant: 0
+});
+
+const nouveauRevenu = ref({
+  annee: annee.value,
+  mois: mois.value,
+  categorie: '',
+  sous_categorie: '',
   montant: 0
 });
 
@@ -160,6 +181,17 @@ async function chargerDepenses() {
       error
     );
   }
+
+  try {
+    categorieList.value = await apiGet<string[]>(
+      `/depenses-reelles/all-categories-reelles/${annee.value}/${mois.value}`
+    );
+  } catch (error) {
+    console.error(
+      'Erreur lors de la récupération des catégories :',
+      error
+    );
+  }
 }
 
 function formatMoney(value) {
@@ -194,16 +226,25 @@ function moisSuivant() {
 }
 
 async function ajouterDepense() {
+  const categorie = ajoutCategorieOuvert.value
+    ? nouvelleCategorie.value.trim()
+    : nouvelleDepense.value.categorie;
+
+  if (!categorie) {
+    alert('Veuillez renseigner une catégorie.');
+    return;
+  }
+
   const depense = {
     annee: annee.value,
     mois: mois.value,
-    type: 'dépense',    
-    categorie: nouvelleDepense.value.categorie,
+    type: nouvelleDepense.value.type,    
+    categorie,
     sous_categorie: nouvelleDepense.value.sous_categorie,
     description: nouvelleDepense.value.description,
     montant: nouvelleDepense.value.montant
   };    
-  console.log('Nouvelle dépense :', depense); 
+  console.log(depense);
 
   try {
     await apiPost<DepensesReelles>('/depenses-reelles', depense);
@@ -216,6 +257,45 @@ async function ajouterDepense() {
         categorie: '',
         sous_categorie: '',
         description: '',
+        montant: 0
+    };  
+    console.log(depense);
+    await chargerDepenses();    
+  } catch (error) {
+    console.error(
+      'Erreur lors de la récupération des dépenses réelles par année et par mois :',
+      error
+    );
+  }  
+}
+
+async function ajouterRevenu() {
+  const categorie = ajoutCategorieOuvert.value
+    ? nouvelleCategorie.value.trim()
+    : nouveauRevenu.value.categorie;
+
+  if (!categorie) {
+    alert('Veuillez renseigner une catégorie.');
+    return;
+  }
+      
+  const revenu = {
+    annee: annee.value,
+    mois: mois.value,   
+    categorie,
+    sous_categorie: nouveauRevenu.value.sous_categorie,
+    montant: nouveauRevenu.value.montant
+  };    
+
+  try {
+    await apiPost<Revenu>('/revenus', revenu);
+
+    popupRevenuOuverte.value = false;
+    nouveauRevenu.value = {
+        annee: annee.value,
+        mois: mois.value,
+        categorie: '',
+        sous_categorie: '',
         montant: 0
     };  
     await chargerDepenses();    
@@ -602,8 +682,91 @@ function getSumAllDepensesPrevues(data: BudgetDepense[]): number {
       </div>
 
     </section>
+    <div class="transaction-actions">
+        <button 
+        class="add-expense-button-left" 
+        @click="popupRevenuOuverte = true"
+        >
+        <span>+</span>
 
+            Ajouter un revenu
 
+        </button>
+        <div
+            v-if="popupRevenuOuverte"
+            class="modal-overlay"
+            @click.self="popupRevenuOuverte = false"
+            >
+            <div class="modal">
+                <h2>Ajouter un revenu</h2>
+
+                <form @submit.prevent="ajouterRevenu">
+                <label for="categorie">Catégorie</label>
+                <select
+                v-if="!ajoutCategorieOuvert"
+                v-model="nouveauRevenu.categorie"
+                required
+                >
+                <option value="" disabled>Choisir une catégorie</option>
+
+                <option
+                    v-for="categorie in categorieList"
+                    :key="categorie"
+                    :value="categorie"
+                >
+                    {{ categorie }}
+                </option>
+                </select>
+
+                <input
+                v-else
+                v-model.trim="nouvelleCategorie"
+                type="text"
+                placeholder="Nouvelle catégorie"
+                required
+                />
+
+                <button
+                type="button"
+                @click="ajoutCategorieOuvert = !ajoutCategorieOuvert"
+                >
+                {{ ajoutCategorieOuvert ? 'Choisir une catégorie existante' : '+' }}
+                </button>
+
+                <label for="sous-categorie">Sous-catégorie</label>
+                <input
+                    id="sous-categorie"
+                    v-model="nouveauRevenu.sous_categorie"
+                    type="text"
+                    placeholder="Ex. CAF, MobiliJeune..."
+                    required
+                />
+                <label for="montant">Montant (€)</label>
+                <input
+                    id="montant"
+                    v-model.number="nouveauRevenu.montant"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    placeholder="0,00"
+                    required
+                />
+
+                <div class="modal-actions">
+                    <button
+                    type="button"
+                    @click="popupRevenuOuverte = false"
+                    >
+                    Annuler
+                    </button>
+
+                    <button type="submit">
+                    Ajouter
+                    </button>
+                </div>
+                </form>
+            </div>
+        </div>        
     <!-- ADD EXPENSE -->
 
     <button
@@ -621,24 +784,52 @@ function getSumAllDepensesPrevues(data: BudgetDepense[]): number {
     @click.self="popupDepenseOuverte = false"
     >
     <div class="modal">
-        <h2>Ajouter une dépense</h2>
+        <h2>Ajouter une dépense/gain</h2>
 
         <form @submit.prevent="ajouterDepense">
-        <label for="categorie">Catégorie</label>
+
+        <label for="categorie">Type</label>
         <select
-            id="categorie"
-            v-model="nouvelleDepense.categorie"
+            id="type"
+            v-model="nouvelleDepense.type"
             required
         >
-            <option value="" disabled>Choisir une catégorie</option>
-            <option
-            v-for="categorie in categoriesKey"
+            <option value="" disabled>Sélectionner le type</option>
+            <option>dépense</option>
+            <option>gain</option>
+        </select>   
+
+        <label for="categorie">Catégorie</label>
+        <select
+        v-if="!ajoutCategorieOuvert"
+        v-model="nouvelleDepense.categorie"
+        required
+        >
+        <option value="" disabled>Choisir une catégorie</option>
+
+        <option
+            v-for="categorie in categorieList"
             :key="categorie"
             :value="categorie"
-            >
+        >
             {{ categorie }}
-            </option>
+        </option>
         </select>
+
+        <input
+        v-else
+        v-model.trim="nouvelleCategorie"
+        type="text"
+        placeholder="Nouvelle catégorie"
+        required
+        />
+
+        <button
+        type="button"
+        @click="ajoutCategorieOuvert = !ajoutCategorieOuvert"
+        >
+        {{ ajoutCategorieOuvert ? 'Choisir une catégorie existante' : '+' }}
+        </button>
 
         <label for="sous-categorie">Sous-catégorie</label>
         <input
@@ -681,6 +872,7 @@ function getSumAllDepensesPrevues(data: BudgetDepense[]): number {
             </button>
         </div>
         </form>
+    </div>
     </div>
     </div>
   </main>
