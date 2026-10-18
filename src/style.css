@@ -605,10 +605,39 @@ box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 
 transition: 0.2s ease;
 
+}
+
+.add-expense-button-prevue {
+position: fixed;
+right: 455px;
+bottom: 30px;
+
+display: flex;
+align-items: center;
+gap: 9px;
+
+background: #18181d;
+color: #ffffff;
+
+padding: 13px 18px;
+border-radius: 13px;
+
+font-size: 13px;
+font-weight: 600;
+
+box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+
+transition: 0.2s ease;
 
 }
 
 .add-expense-button span {
+font-size: 20px;
+font-weight: 300;
+line-height: 1;
+}
+
+.add-expense-button-prevue span {
 font-size: 20px;
 font-weight: 300;
 line-height: 1;
@@ -621,6 +650,11 @@ line-height: 1;
 }
 
 .add-expense-button-left:hover {
+transform: translateY(-2px);
+box-shadow: 0 12px 30px rgba(0, 0, 0, 0.20);
+}
+
+.add-expense-button-prevue:hover {
 transform: translateY(-2px);
 box-shadow: 0 12px 30px rgba(0, 0, 0, 0.20);
 }
@@ -708,10 +742,7 @@ RESPONSIVE — MOBILE
     grid-template-columns: 1fr;
 }
 
-.add-expense-button {
-    right: 20px;
-    bottom: 20px;
-}
+
 
 
 }
