@@ -40,8 +40,14 @@ const iconesCategories: Record<string, string> = {
   "Courses": "🛒",
   "Loyer": "🏠"
 };
-const categoriesKey = Object.keys(iconesCategories);
 
+
+interface categorieType {
+ nom: string,
+ icon: string,
+ depense: number,
+ budget: number
+}
 
 const depensesPrevuesByAnnee = ref<BudgetDepense[]>([]);
 const depensesReellesByAnneeMois = ref<BudgetDepense[]>([]);
@@ -218,14 +224,14 @@ async function chargerDepenses() {
   }   
 }
 
-function formatMoney(value) {
+function formatMoney(value: number) {
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
     currency: 'EUR',
   }).format(value)
 }
 
-function categoriePourcentage(categorie) {
+function categoriePourcentage(categorie: categorieType) {
   if (!categorie.budget) return 0;
   return Math.min(((categorie.depense ?? 0) / categorie.budget) * 100)
 }
