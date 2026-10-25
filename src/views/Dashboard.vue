@@ -4,6 +4,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { apiGet, apiPost } from '../services/api';
+import { RouterLink } from 'vue-router';
 
 interface BudgetDepense {
     id: number,
@@ -411,7 +412,7 @@ function getSumAllDepensesPrevues(data: BudgetDepense[]): number {
 
     <nav class="navigation">
 
-      <a href="#" class="nav-item active">
+      <a href="/" class="nav-item active">
         <span>⌂</span>
         <span>Dashboard</span>
       </a>
@@ -431,10 +432,10 @@ function getSumAllDepensesPrevues(data: BudgetDepense[]): number {
         <span>Budgets</span>
       </a>
 
-      <a href="#" class="nav-item">
-        <span>☷</span>
-        <span>Catégories</span>
-      </a>
+      <RouterLink to="/statistiques" class="nav-item">
+        <span>◔</span>
+        <span>Statistiques</span>
+      </RouterLink>
 
     </nav>
 
