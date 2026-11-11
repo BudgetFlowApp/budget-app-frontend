@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
-import type { BudgetDepense, CategoriesReelles, Revenu, CategorieType } from '../types/depenses'
-import { apiGet, apiPost } from '../services/api';
+import type { BudgetDepense, CategoriesReelles } from '../types/depenses'
+import { apiGet } from '../services/api';
 
 // États partagés
 export const depensesPrevuesByAnnee = ref<BudgetDepense[]>([])

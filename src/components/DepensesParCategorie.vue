@@ -8,11 +8,12 @@ import {
   Legend
 } from 'chart.js'
 import { Pie } from 'vue-chartjs'
+import type { CategoriesReelles } from '../types/depenses'
 
 ChartJS.register(ArcElement, Tooltip, Legend)
 
 const props = defineProps<{
-  depenses: Record<string, number> | undefined
+  depenses: CategoriesReelles | undefined
 }>()
 
 const totauxParCategorie = computed(() => {

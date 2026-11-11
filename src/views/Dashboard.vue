@@ -3,35 +3,10 @@
 </style>
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
-import { apiGet, apiPost } from '../services/api';
+import { apiPost } from '../services/api';
 import { RouterLink } from 'vue-router';
-
-interface BudgetDepense {
-    id: number,
-    annee: number,
-    mois: string,
-    type: string,
-    categorie: string,
-    sous_categorie: string,
-    description: string,
-    montant: number
-}
-
-interface CategoriesReelles {
-    Courses: number,
-    Transport: number,
-    Loyer: number,
-    Restaurants: number,
-    Shopping: number,
-}
-
-interface Revenu {
-    annee: number,
-    mois: string,
-    categorie: string,
-    sous_categorie: string,
-    montant: number
-}
+import type { BudgetDepense, Revenu, CategorieType } from '../types/depenses'
+import { chargerDepenses, depensesPrevuesByAnnee, depensesReellesByAnneeMois, depensesReellesTotalByCategorie, categorieListDepensesReelles, categorieListRevenu, categorieListDepensesPrevues, revenus, mois, annee, moisActuel, moisNoms } from '../composables/chargerDepenses'
 
 const iconesCategories: Record<string, string> = {
   "Shopping": "🛍️",
@@ -41,33 +16,6 @@ const iconesCategories: Record<string, string> = {
   "Loyer": "🏠"
 };
 
-
-interface categorieType {
- nom: string,
- icon: string,
- depense: number,
- budget: number
-}
-
-const depensesPrevuesByAnnee = ref<BudgetDepense[]>([]);
-const depensesReellesByAnneeMois = ref<BudgetDepense[]>([]);
-const depensesReellesTotalByCategorie = ref<CategoriesReelles>(); 
-const categorieListDepensesReelles = ref<string[]>([]);  
-const categorieListRevenu = ref<string[]>([]);     
-const categorieListDepensesPrevues = ref<string[]>([]);   
-
-const moisActuel = ref(new Date().getMonth()); // 0 = janvier, 11 = décembre
-const annee = ref(new Date().getFullYear());
-
-const moisNoms = [
-  'Janvier', 'Février', 'Mars', 'Avril',
-  'Mai', 'Juin', 'Juillet', 'Août',
-  'Septembre', 'Octobre', 'Novembre', 'Décembre'
-];
-const mois = computed(() => moisNoms[moisActuel.value]);
-
-
-const revenus = ref<number>(0);  
 const depenses = computed(() =>
   getSumAllDepensesPrevues(depensesReellesByAnneeMois.value)
 );
@@ -99,11 +47,11 @@ const nouveauRevenu = ref({
 });
 
 onMounted(() => {
-  chargerDepenses();  
+  loadDepenses();  
 });
 
 watch([moisActuel, annee], () => {
-  chargerDepenses();
+  loadDepenses();
 });
 
 const categories = computed(() => [
@@ -147,81 +95,8 @@ const pourcentageDepenses = computed(() => {
   return Math.min((depenses.value / depensesPrevues.value) * 100)
 })
 
-async function chargerDepenses() {
-  try {
-    depensesPrevuesByAnnee.value = await apiGet<BudgetDepense[]>(
-      `/depenses-prevues/annee-mois/${annee.value}/${mois.value}`
-    );
-  } catch (error) {
-    console.error(
-      'Erreur lors de la récupération des dépenses prévues par année :',
-      error
-    );
-  }
-
-  try {
-    depensesReellesByAnneeMois.value = await apiGet<BudgetDepense[]>(
-      `/depenses-reelles/annee-mois/${annee.value}/${mois.value}`
-    );
-  } catch (error) {
-    console.error(
-      'Erreur lors de la récupération des dépenses prévues par année :',
-      error
-    );
-  }  
-
-  try {
-    revenus.value = await apiGet<number>(
-      `/revenus/sum-all-revenus/${annee.value}/${mois.value}`
-    );
-  } catch (error) {
-    console.error(
-      'Erreur lors de la récupération des revenus prévues par année et par mois :',
-      error
-    );
-  }  
-
-  try {
-    depensesReellesTotalByCategorie.value = await apiGet<CategoriesReelles>(
-      `/depenses-reelles/total-by-categorie/${annee.value}/${mois.value}`
-    );
-  } catch (error) {
-    console.error(
-      'Erreur lors de la récupération des dépenses réelles par année et par mois :',
-      error
-    );
-  }
-
-  try {
-    categorieListDepensesReelles.value = await apiGet<string[]>(
-      `/depenses-reelles/all-categories-reelles/${annee.value}/${mois.value}`
-    );
-  } catch (error) {
-    console.error(
-      'Erreur lors de la récupération des catégories de dépenses réelles :',
-      error
-    );
-  }
-  try {
-    categorieListRevenu.value = await apiGet<string[]>(
-      `/revenus/all-categories-revenus/${annee.value}/${mois.value}`
-    );
-  } catch (error) {
-    console.error(
-      'Erreur lors de la récupération des catégories de revenus :',
-      error
-    );
-  }  
-  try {
-    categorieListDepensesPrevues.value = await apiGet<string[]>(
-      `/depenses-prevues/all-categories-prevues/${annee.value}/${mois.value}`
-    );
-  } catch (error) {
-    console.error(
-      'Erreur lors de la récupération des catégories de dépenses prévues :',
-      error
-    );
-  }   
+async function loadDepenses() {
+  await chargerDepenses(annee.value, mois.value);
 }
 
 function formatMoney(value: number) {
@@ -231,7 +106,7 @@ function formatMoney(value: number) {
   }).format(value)
 }
 
-function categoriePourcentage(categorie: categorieType) {
+function categoriePourcentage(categorie: CategorieType) {
   if (!categorie.budget) return 0;
   return Math.min(((categorie.depense ?? 0) / categorie.budget) * 100)
 }
@@ -297,7 +172,7 @@ async function ajouterDepenseReelle() {
         description: '',
         montant: 0
     };  
-    await chargerDepenses();    
+    await loadDepenses();    
   } catch (error) {
     console.error(
       'Erreur lors de la récupération des dépenses réelles par année et par mois :',
@@ -340,7 +215,7 @@ async function ajouterDepensePrevue() {
         description: '',
         montant: 0
     };  
-    await chargerDepenses();    
+    await loadDepenses();    
   } catch (error) {
     console.error(
       'Erreur lors de la récupération des dépenses prévues par année et par mois :',
@@ -378,7 +253,7 @@ async function ajouterRevenu() {
         sous_categorie: '',
         montant: 0
     };  
-    await chargerDepenses();    
+    await loadDepenses();    
   } catch (error) {
     console.error(
       'Erreur lors de la récupération des dépenses réelles par année et par mois :',
